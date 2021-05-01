@@ -3,8 +3,7 @@
 
 
         <form action='main.py' method='POST'>
-        <label>City: </label>
-        <input type='text' name='city'>
+        <label>City: </label> <input type='text' name='city'>
         <label> State: </label>
         <select name='state'>
           	<option value='AL'>AL</option>
@@ -60,22 +59,26 @@
             <option value='WY'>WY</option>
         </select><br><br>
 
-        <label>Max Price: </label>
-        <input type='text' name='price'><br><br>
+        <label>Max Price: </label><input type='text' name='price'><br><br>
 
         <label for='beds'>Beds </label>
         <select name='beds'>
-        <option value='min-1-bedrooms'>1</option><option value='min-2-bedrooms'>2</option><option value='min-3-bedrooms'>3</option><option value='4-bedrooms'>4+</option></select><br><br>
+            <option value='1-bedrooms'>1</option><option value='2-bedrooms'>2</option><option value='3-bedrooms'>3</option><option value='4-bedrooms'>4+</option>
+        </select><br><br>
 
         <label for='bathrooms'>Bathrooms </label>
         <select name='bathrooms'>
-        <option value='1-bathrooms'>1+</option><option value='2-bathrooms'>2+</option><option value='3-bathrooms'>3+</option></select><br>
+            <option value='1-bathrooms'>1+</option><option value='2-bathrooms'>2+</option><option value='3-bathrooms'>3+</option>
+        </select><br>
 
         <br><label for='features'>Other Features:</label><br>
         <input type='checkbox' class='features' name='checkbox[]' value='washer-dryer'> In Unit Washer & Dryer<br>
         <input type='checkbox' class='features' name='checkbox[]' value='parking'> Parking<br>
         <input type='checkbox' class='features' name='checkbox[]' value='fitness-center'> Fitness Center<br>
         <input type='checkbox' class='features' name='checkbox[]' value='pet-friendly'> Pet Friendly<br><br>
+
+        <label>Work Address: </label> <input type='text' name='work'><br><br>
+
         <input type='submit' name='submit' value='Submit'>
         </form>
 
@@ -98,10 +101,13 @@
                 $features = substr($features, 1);
                 $pythonCmd .= " -features $features";
             }
-
+            if(!empty($_POST['work'])){
+               $work = $_POST['work'];
+               $pythonCmd .= " -work '$work'";
+            }
             $pythonCmd .= " -city $city -state $state -beds $beds -bathrooms $bathrooms";
             $output = shell_exec($pythonCmd);
             echo "Your spreadsheet is ready to view at: $output";
-	}
+	    }
 
 ?>

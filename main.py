@@ -6,9 +6,13 @@ import os
 
 
 apt_base_url = 'https://www.apartments.com/'
-walkscore_base_url = 'https://www.walkscore.com/score/'
+loc_base_url = 'http://dev.virtualearth.net/REST/v1/Locations/US/'
+commute_base_url = 'https://dev.virtualearth.net/REST/v1/Routes/DistanceMatrix?'
+with open("api_key.txt") as file:
+    api_key = file.readline().rstrip()
+
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'}
-excel_headers = ['Name', 'Address', 'Price', 'Beds', 'Link', 'Walk Score', 'Transit Score', 'Bike Score']
+excel_headers = ['Name', 'Address', 'Price', 'Beds', 'Link', 'Driving Time (min)', 'Transit Time (min)', 'Walking Time (min)']
 
 parser = argparse.ArgumentParser()
 # add command line args
@@ -18,9 +22,10 @@ parser.add_argument("-price", type=str, required=False, default="")
 parser.add_argument("-beds", type=str, required=False, default="min-1-bedrooms")
 parser.add_argument("-bathrooms", type=str, required=False, default="1-bathrooms")
 parser.add_argument("-features", type=str, required=False, default="")
+parser.add_argument("-work", type=str, required=False, default="")
 
 
-def create_sheet(input_list, file_loc):
+def create_sheet(input_list, file_loc, work_address):
     url = create_apt_search_url(input_list)
 
     # create Excel sheet
@@ -37,7 +42,7 @@ def create_sheet(input_list, file_loc):
     row_cnt = 1
     apt_listing = get_listings(url)
     for apt in apt_listing:
-        apt_info = get_info(apt)
+        apt_info = get_info(apt, work_address)
         write_info(apt_info, row_cnt, sheet)
         row_cnt += 1
     wb.save(file_loc)
@@ -68,37 +73,61 @@ def write_info(apt_info, row_cnt, sheet):
 def get_listings(url):
     page = requests.get(url, headers=headers)
     soup = BeautifulSoup(page.content, 'html.parser')
-    return soup.find(id='placardContainer').find_all('article', class_='placard')
+    return soup.find('div', class_='placardContainer').find_all('article', class_='placard')
 
 
-def get_info(apt):
+def get_info(apt, work_address):
     # get apartment details
     name = apt.find('span', class_='js-placardTitle title')
     address = apt.find('div', class_='property-address js-url')
     price = apt.find('div', class_='price-range')
     beds = apt.find('div', class_='bed-range')
     link = apt.find('a', class_='property-link')
-    # get walk/transit scores
-    walkscores = get_walk_transit_scores(address.contents[0])
-    return [name, address, price, beds, link, walkscores['walk'], walkscores['transit'], walkscores['bike']]
+    # get commute times
+    if work_address != "":
+        commute_times = get_commute_times(address, work_address)
+        return [name, address, price, beds, link, commute_times['driving'], commute_times['transit'], commute_times['walking']]
+    # walk_score, transit_score, bike_score = get_apt_scores(link.get('href'))
+    return [name, address, price, beds, link]
 
 
-def get_walk_transit_scores(address):
-    formatted_address = address.replace(' ', '-').replace('.', '-')
-    page = requests.get(walkscore_base_url+formatted_address, headers=headers)
+def get_apt_scores(link):
+    page = requests.get(link, headers=headers)
     soup = BeautifulSoup(page.content, 'html.parser')
-    score_container = soup.find_all('div', class_='clearfix score-div')
-    scores = {'walk': None, 'transit': None, 'bike': None}
-    for score_info in score_container:
-        score = score_info.find('img')['src']
-        if 'walk/score' in score:
-            scores['walk'] = int(score.replace('//pp.walk.sc/badge/walk/score/', '').replace('.svg', ''))
-        elif 'transit/score' in score:
-            scores['transit'] = int(score.replace('//pp.walk.sc/badge/transit/score/', '').replace('.svg', ''))
-        else:
-            scores['bike'] = int(score.replace('//pp.walk.sc/badge/bike/score/', '').replace('.svg', ''))
-    return scores
+    walk_score = soup.find('div', class_='score-card walkScore').find('div', class_='score')
+    transit_score = soup.find('div', class_='score-card transitScore').find('div', class_='score')
+    bike_score = soup.find('div', class_='score-card bikeScore').find('div', class_='score')
+    return walk_score, transit_score, bike_score
 
+
+def get_commute_times(address, work_address):
+    org_latitude, org_longitude = get_coordinates(address.contents[0])
+    dest_latitude, dest_longitude = get_coordinates(work_address)
+    commute_times = {}
+    modes = ['driving', 'transit', 'walking']
+    for travel_mode in modes:
+        commute_url = commute_base_url + 'origins=' + str(org_latitude) + ',' + str(org_longitude) + '&destinations=' + str(dest_latitude) + ',' + str(dest_longitude) + '&travelMode=' + travel_mode + '&key=' + api_key
+        response = requests.get(commute_url).json()
+        commute_time = response['resourceSets'][0]['resources'][0]['results'][0]['travelDuration']
+        commute_times[travel_mode] = commute_time
+    return commute_times
+
+
+def get_coordinates(address):
+    state, zipcode, city, street_address = parse_address(address)
+    location_url = loc_base_url + state + '/' + zipcode + '/' + city + '/' + street_address + '?key=' + api_key
+    response = requests.get(location_url).json()
+    coordinates = response['resourceSets'][0]['resources'][0]['point']['coordinates']
+    return coordinates[0], coordinates[1]
+
+
+def parse_address(address):
+    split_address = list(address.split(" "))
+    zipcode = split_address[len(split_address) - 1]
+    state = split_address[len(split_address) - 2]
+    city = str.rstrip(split_address[len(split_address) - 3][:-1])
+    street_address = str.rstrip('%20'.join(split_address[:-3])[:-1])
+    return state, zipcode, city, street_address
 
 # parse command line args
 args = parser.parse_args()
@@ -107,7 +136,8 @@ inputs = {'city': args.city,
           'price':  args.price,
           'beds': args.beds,
           'bathrooms': args.bathrooms,
-          'features': args.features}
-create_sheet(inputs, 'aptmts.xls')
-print(os.path.realpath('aptmts.xls'))
+          'features': args.features,
+          'work_address': args.work}
 
+create_sheet(inputs, 'aptmts.xls', inputs['work_address'])
+print(os.path.realpath('aptmts.xls'))
