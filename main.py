@@ -87,17 +87,7 @@ def get_info(apt, work_address):
     if work_address != "":
         commute_times = get_commute_times(address, work_address)
         return [name, address, price, beds, link, commute_times['driving'], commute_times['transit'], commute_times['walking']]
-    # walk_score, transit_score, bike_score = get_apt_scores(link.get('href'))
     return [name, address, price, beds, link]
-
-
-def get_apt_scores(link):
-    page = requests.get(link, headers=headers)
-    soup = BeautifulSoup(page.content, 'html.parser')
-    walk_score = soup.find('div', class_='score-card walkScore').find('div', class_='score')
-    transit_score = soup.find('div', class_='score-card transitScore').find('div', class_='score')
-    bike_score = soup.find('div', class_='score-card bikeScore').find('div', class_='score')
-    return walk_score, transit_score, bike_score
 
 
 def get_commute_times(address, work_address):
