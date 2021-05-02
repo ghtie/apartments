@@ -4,7 +4,6 @@ from bs4 import BeautifulSoup
 from xlwt import Workbook
 import os
 
-
 apt_base_url = 'https://www.apartments.com/'
 loc_base_url = 'http://dev.virtualearth.net/REST/v1/Locations/US/'
 commute_base_url = 'https://dev.virtualearth.net/REST/v1/Routes/DistanceMatrix?'
@@ -12,7 +11,7 @@ with open("api_key.txt") as file:
     api_key = file.readline().rstrip()
 
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'}
-excel_headers = ['Name', 'Address', 'Price', 'Beds', 'Link', 'Driving Time (min)', 'Transit Time (min)', 'Walking Time (min)']
+
 
 parser = argparse.ArgumentParser()
 # add command line args
@@ -25,6 +24,13 @@ parser.add_argument("-features", type=str, required=False, default="")
 parser.add_argument("-work", type=str, required=False, default="")
 
 
+def create_apt_search_url(input_dict):
+    if input_dict['price'] != '':
+        input_dict['price'] = '-' + input_dict['price']
+    return apt_base_url + input_dict['city'] + '-' + input_dict['state'] + '/' + input_dict['beds'] + '-' \
+           + input_dict['bathrooms'] + input_dict['price'] + '/' + input_dict['features']
+
+
 def create_sheet(input_list, file_loc, work_address):
     url = create_apt_search_url(input_list)
 
@@ -33,6 +39,7 @@ def create_sheet(input_list, file_loc, work_address):
     sheet = wb.add_sheet('Apartment Listings')
 
     # add headers
+    excel_headers = ['Name', 'Address', 'Price', 'Beds', 'Link', 'Driving Time (min)', 'Transit Time (min)', 'Walking Time (min)']
     col_cnt = 0
     for header in excel_headers:
         sheet.write(0, col_cnt, header)
@@ -40,19 +47,12 @@ def create_sheet(input_list, file_loc, work_address):
 
     # get apartment info
     row_cnt = 1
-    apt_listing = get_listings(url)
+    apt_listing = get_apt_listings(url)
     for apt in apt_listing:
-        apt_info = get_info(apt, work_address)
+        apt_info = get_apt_info(apt, work_address)
         write_info(apt_info, row_cnt, sheet)
         row_cnt += 1
     wb.save(file_loc)
-
-
-def create_apt_search_url(input_dict):
-    if input_dict['price'] != '':
-        input_dict['price'] = '-' + input_dict['price']
-    return apt_base_url + input_dict['city'] + '-' + input_dict['state'] + '/' + input_dict['beds'] + '-' \
-           + input_dict['bathrooms'] + input_dict['price'] + '/' + input_dict['features']
 
 
 def write_info(apt_info, row_cnt, sheet):
@@ -70,13 +70,13 @@ def write_info(apt_info, row_cnt, sheet):
         sheet.write(row_cnt, i, info)
 
 
-def get_listings(url):
+def get_apt_listings(url):
     page = requests.get(url, headers=headers)
     soup = BeautifulSoup(page.content, 'html.parser')
     return soup.find('div', class_='placardContainer').find_all('article', class_='placard')
 
 
-def get_info(apt, work_address):
+def get_apt_info(apt, work_address):
     # get apartment details
     name = apt.find('span', class_='js-placardTitle title')
     address = apt.find('div', class_='property-address js-url')
@@ -129,5 +129,6 @@ inputs = {'city': args.city,
           'features': args.features,
           'work_address': args.work}
 
-create_sheet(inputs, 'aptmts.xls', inputs['work_address'])
-print(os.path.realpath('aptmts.xls'))
+sheet_name = 'aptmts-' + inputs['city'] + '-' + inputs['state'] + '.xls'
+create_sheet(inputs, sheet_name, inputs['work_address'])
+print(os.path.realpath(sheet_name))

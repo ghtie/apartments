@@ -1,8 +1,16 @@
-<h1> Apartment Hunting </h1>
-<h2> A website for spreadsheet lovers! </h2>
-
+<head>
+	<title>Apartment Hunting</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/css/bootstrap.min.css"rel="stylesheet">
+</head>
+<body>
+<div class="container h-100">
+    <div class="row h-100 justify-content-center align-items-center">
+        <div class="col-10 col-md-8 col-lg-6" style="padding:40px;">
+        <h1> Apartment Hunting </h1>
+        <p> A website for spreadsheet lovers! </p>
 
         <form action='main.py' method='POST'>
+        <h5>Required Fields</h5>
         <label>City: </label> <input type='text' name='city'>
         <label> State: </label>
         <select name='state'>
@@ -59,7 +67,8 @@
             <option value='WY'>WY</option>
         </select><br><br>
 
-        <label>Max Price: </label><input type='text' name='price'><br><br>
+        <h5>Additional Filters (optional)</h5>
+        <label>Max Price: $</label><input type='text' name='price'><br><br>
 
         <label for='beds'>Beds </label>
         <select name='beds'>
@@ -77,37 +86,41 @@
         <input type='checkbox' class='features' name='checkbox[]' value='fitness-center'> Fitness Center<br>
         <input type='checkbox' class='features' name='checkbox[]' value='pet-friendly'> Pet Friendly<br><br>
 
-        <label>Work Address: </label> <input type='text' name='work'><br><br>
+        <label>Work Address (ie. 10900 Euclid Ave, Cleveland, OH 44106): </label> <input type='text' name='work'><br><br>
 
-        <input type='submit' name='submit' value='Submit'>
+        <input type='submit' class='btn btn-primary' name='submit' value='Submit'>
         </form>
 
-<?php
-        $pythonCmd = "python main.py";
-        if (!empty($_POST["city"]) && !empty($_POST["state"])) {
-            $city = str_replace(" ","-", $_POST['city']);
-            $state = $_POST['state'];
-            if(!empty($_POST['price'])){
-               $price = $_POST['price'];
-               $pythonCmd .= " -price under-$price";
-            }
-            $beds = $_POST['beds'];
-            $bathrooms = $_POST['bathrooms'];
-            $features = "";
-            if(!empty($_POST['checkbox'])){
-                foreach($_POST['checkbox'] as $amenities){
-                    $features .= "-$amenities";
+        <?php
+                $pythonCmd = "python main.py";
+                if (!empty($_POST["city"]) && !empty($_POST["state"])) {
+                    $city = str_replace(" ","-", $_POST['city']);
+                    $state = $_POST['state'];
+                    if(!empty($_POST['price'])){
+                       $price = $_POST['price'];
+                       $pythonCmd .= " -price under-$price";
+                    }
+                    $beds = $_POST['beds'];
+                    $bathrooms = $_POST['bathrooms'];
+                    $features = "";
+                    if(!empty($_POST['checkbox'])){
+                        foreach($_POST['checkbox'] as $amenities){
+                            $features .= "-$amenities";
+                        }
+                        $features = substr($features, 1);
+                        $pythonCmd .= " -features $features";
+                    }
+                    if(!empty($_POST['work'])){
+                       $work = $_POST['work'];
+                       $pythonCmd .= " -work '$work'";
+                    }
+                    $pythonCmd .= " -city $city -state $state -beds $beds -bathrooms $bathrooms";
+                    $output = shell_exec($pythonCmd);
+                    echo "Your spreadsheet is ready to view at: $output";
                 }
-                $features = substr($features, 1);
-                $pythonCmd .= " -features $features";
-            }
-            if(!empty($_POST['work'])){
-               $work = $_POST['work'];
-               $pythonCmd .= " -work '$work'";
-            }
-            $pythonCmd .= " -city $city -state $state -beds $beds -bathrooms $bathrooms";
-            $output = shell_exec($pythonCmd);
-            echo "Your spreadsheet is ready to view at: $output";
-	    }
 
-?>
+        ?>
+        </div>
+        </div>
+    </div>
+</body>

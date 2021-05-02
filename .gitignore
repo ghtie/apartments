@@ -1,5 +1,5 @@
 /venv
 .DS_STORE
 .idea
-aptmts.xls
+*.xls
 api_key.txt
